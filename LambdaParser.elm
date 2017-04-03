@@ -11,7 +11,7 @@ spaces : Parser ()
 spaces =
     ignore zeroOrMore (\char -> char == ' ')
 
-r = run
+parse = run
 o = oneOf
 rp = repeat
 om = oneOrMore
@@ -110,6 +110,7 @@ emptyScope : Scope
 emptyScope = Dict.empty
 
 
+eval : Scope -> Expression -> Value
 eval env expr = case expr of
                     Constant x -> VInt x
                     Variable x -> case (Dict.get x env) of
@@ -120,7 +121,8 @@ eval env expr = case expr of
                         apply (eval env a) (eval env b)
                     Error -> VError
 
-evalExpr expr = case expr of
+evalExprFromResult : Result.Result Parser.Error Expression -> Value
+evalExprFromResult expr = case expr of
                     Ok x -> eval emptyScope x
                     Err _ -> VError
 
