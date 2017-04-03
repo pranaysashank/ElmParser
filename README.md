@@ -8,7 +8,7 @@ To parse a string into a valid Lambda Expression, use the _parse_ function:
 parse : Parser.Parser a -> String -> Result Parser.Error a
 ```
 
-# Example
+## Example
 ```elm
 > parse expr "\\x.x"
 Ok (Abstraction "x" (Variable "x"))
@@ -22,7 +22,7 @@ eval : Scope -> Expression -> Value
 evalExprFromResult : Result.Result Parser.Error Expression -> Value
 ```
 
-# Example
+## Example
 ```elm
 > eval emptyScope (Combination (Abstraction "x" (Variable "x")) (Constant 2))
 VInt 2
