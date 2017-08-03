@@ -1,4 +1,4 @@
-# ElmParser
+# A Parser for Lambda Calculus in Elm
 
 The only way (as of now) to run the _eval_ function is in elm-repl.
 
