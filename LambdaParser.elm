@@ -6,6 +6,8 @@ import Char
 import Set
 import Dict exposing (..)
 import Debug exposing (..)
+import String exposing (toInt)
+import Result exposing (withDefault)
 
 spaces : Parser ()
 spaces =
@@ -23,6 +25,8 @@ type Expression = Variable Name
     | Constant Int
     | Combination Expression Expression
     | Abstraction Name Expression
+    | Add Expression Expression
+    | Mul Expression Expression
     | Error
 
 str : Parser String
@@ -66,6 +70,23 @@ lambda =
         |= expr
         |. spaces
 
+add =
+    (succeed (Abstraction "x" (Abstraction "y" (Add (Variable "x") (Variable "y")))))
+        |. keyword "add"
+        |. spaces
+
+mul =
+    (succeed (Abstraction "x" (Abstraction "y" (Mul (Variable "x") (Variable "y")))))
+        |. keyword "mul"
+        |. spaces
+
+op : Parser Expression
+op = oneOf
+     [
+      add
+     ,mul
+     ]
+
 definition : Parser Expression
 definition =
     succeed Abstraction
@@ -81,6 +102,7 @@ definition =
 term = oneOf
        [
         lazy (\_ -> parens expr)
+       ,op
        ,var
        ,const
        ,lazy (\_ -> lambda)
@@ -109,6 +131,23 @@ type Value = VInt Int
 emptyScope : Scope
 emptyScope = Dict.empty
 
+type alias DefScope = Dict String Expression
+
+initDefs : DefScope
+initDefs = Dict.empty
+
+parseDefs : DefScope -> Expression -> Expression
+parseDefs defs expr = case expr of
+                          Constant x -> Constant x
+                          Variable x -> case (Dict.get x defs) of
+                                            Just v -> (parseDefs defs v)
+                                            Nothing -> Variable x
+                          Abstraction v body -> Abstraction v (parseDefs defs body)
+                          Combination a b -> Combination (parseDefs defs a) (parseDefs defs b)
+                          Add x y -> Add x y
+                          Mul x y -> Mul x y
+                          Error -> Error
+
 
 eval : Scope -> Expression -> Value
 eval env expr = case expr of
@@ -119,7 +158,18 @@ eval env expr = case expr of
                     Abstraction v body -> VClosure v body env
                     Combination a b ->
                         apply (eval env a) (eval env b)
-                    Error -> VError
+                    Add (Variable x) (Variable y) -> VInt ((getValue env x) + (getValue env y))
+                    Mul (Variable x) (Variable y) -> VInt ((getValue env x) * (getValue env y))
+                    _ -> VError
+
+getValue env x = case (Dict.get x env) of
+                     Just (VInt v) -> v
+                     Just _ -> Debug.crash "Tried to add or multiply a variable and a number"
+                     Nothing -> 0
+
+getExprFromResult expr = case expr of
+                             Ok x -> x
+                             Err _ -> Error
 
 evalExprFromResult : Result.Result Parser.Error Expression -> Value
 evalExprFromResult expr = case expr of
@@ -132,6 +182,9 @@ apply x y = case (x, y) of
                 ((VClosure n e clo), ex) ->
                     eval (extend clo n ex) e
                 (_, _) -> Debug.crash "Tried to apply non-closure"
+
+-- add = Abstraction "x" (Abstraction "y" (Add (Variable "x") (Variable "y")))
+-- mul = Abstraction "x" (Abstraction "y" (Variable "x * y"))
 
 --"(((\\x y.(y x))(((((\\x y. (y x))(((\\x.x) 12)))) (\\x.x))))(\\x.x))"
 -- (Combination (Combination (Abstraction "x" (Abstraction "y" (Combination (Variable "y") (Variable "x")))) (Combination (Combination (Abstraction "x" (Abstraction "y" (Combination (Variable "y") (Variable "x")))) (Combination (Abstraction "x" (Variable "x")) (Constant 12))) (Abstraction "x" (Variable "x")))) (Abstraction "x" (Variable "x")))

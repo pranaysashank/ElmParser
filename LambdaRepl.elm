@@ -40,5 +40,5 @@ view : Model -> Html Msg
 view model =
     div []
         [ input [ placeholder "Text to parse", onInput Change ] []
-        , div [] [ text (toString <| evalExpr (r expr model.content)) ]
+        , div [] [ text (toString <| evalExprFromResult (parse expr model.content)) ]
         ]
